@@ -6,7 +6,6 @@ pipeline {
     }
 
     environment {
-        BRANCH_NAME = "${env.BRANCH_NAME}"
         APP_PORT = "${env.BRANCH_NAME == 'main' ? '3000' : '3001'}"
         IMAGE_NAME = "${env.BRANCH_NAME == 'main' ? 'nodemain' : 'nodedev'}"
     }
@@ -44,8 +43,15 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh "docker rm -f ${IMAGE_NAME} || true"
-                sh "docker run -d --expose ${APP_PORT} --name ${IMAGE_NAME} -p ${APP_PORT}:3000 ${IMAGE_NAME}:v1.0"
+                script {
+                    if (sh(script: "docker ps -a -q -f name=${IMAGE_NAME}", returnStdout: true).trim()) {
+                        sh "docker stop ${IMAGE_NAME}"
+                        sh "docker rm ${IMAGE_NAME}"
+                    } else {
+                        echo "No running containers found for ${IMAGE_NAME}."
+                    }
+                    sh "docker run -d --expose ${APP_PORT} --name ${IMAGE_NAME} -p ${APP_PORT}:3000 ${IMAGE_NAME}:v1.0"
+                }
             }
         }
     }
